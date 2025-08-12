@@ -1,0 +1,1 @@
+# Placeholder warnings configuration
