@@ -1,0 +1,91 @@
+# out-of-source or in-tree build dirs
+/build*/
+bin/
+lib/
+
+# CMake + Ninja junk
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+Makefile
+CMakeScripts/
+build.ninja
+rules.ninja
+.ninja_log
+.ninja_deps
+compile_commands.json
+
+# Objects, libs, executables
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.lib
+*.exp
+*.ilk
+*.pch
+*.pdb
+*.dSYM/
+
+# Qt generated
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+*.rcc
+
+# QML cache
+qmlc/
+*.qmlc
+*.jsc
+
+# Android builds (if you target it)
+android/**/build/
+*.apk
+*.aab
+
+# Logs, cores, debug info
+*.log
+core
+core.*
+*.core
+*.debug
+*.dwp
+*.gcda
+*.gcno
+*.profraw
+*.profdata
+
+# IDE and editor
+*.kdev4
+.kdev4/
+.vscode/
+.idea/
+.clangd/
+*.user
+.DS_Store
+Thumbs.db
+
+# Secrets / env files
+.env
+.env.*.local
+*.env
+*.secret
+secrets*.json
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+*.kdbx
+*.pfx
+*.gnupg/
+.sops.yaml
+*.age
