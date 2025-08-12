@@ -1,0 +1,570 @@
+{
+  "version": "1.0",
+  "description": "VibeNote repository layout and module interactions",
+  "root": {
+    "path": "VibeNote/",
+    "type": "directory",
+    "description": "Root directory of the VibeNote project",
+    "children": [
+      {
+        "path": "app/",
+        "type": "directory",
+        "description": "Kirigami-based GUI and overlay application.",
+        "children": [
+          {
+            "path": "app/qml/",
+            "type": "directory",
+            "description": "QML source files defining UI components, pages, and themes.",
+            "children": []
+          },
+          {
+            "path": "app/icons/",
+            "type": "directory",
+            "description": "Icon assets used in the UI.",
+            "children": []
+          },
+          {
+            "path": "app/src/",
+            "type": "directory",
+            "description": "C++ sources for the GUI, overlay logic and API client.",
+            "children": [
+              {
+                "path": "app/src/main.cpp",
+                "type": "file",
+                "description": "Entry point for the GUI. Creates the QApplication, registers settings singleton, sets up KGlobalAccel hotkey and loads QML. It instantiates ApiClient and SettingsStore and connects them to QML.",
+                "interacts_with": [
+                  "app/src/overlay_controller.cpp",
+                  "app/src/api_client.cpp",
+                  "app/src/settings_store.cpp",
+                  "app/qml/Main.qml"
+                ]
+              },
+              {
+                "path": "app/src/overlay_controller.cpp",
+                "type": "file",
+                "description": "Implements the global hotkey overlay. Handles showing/hiding the overlay, binding Ctrl+Alt+Space via KGlobalAccel, and sending input queries to the daemon via ApiClient.",
+                "interacts_with": [
+                  "app/src/api_client.cpp",
+                  "app/qml/Overlay.qml",
+                  "daemon/src/http_server.cpp"
+                ]
+              },
+              {
+                "path": "app/src/settings_store.cpp",
+                "type": "file",
+                "description": "Manages persistent GUI settings. Reads and writes ~/.config/VibeNote/config.yml and exposes properties to QML pages.",
+                "interacts_with": [
+                  "daemon/src/config.cpp",
+                  "app/qml/settings pages"
+                ]
+              },
+              {
+                "path": "app/src/api_client.cpp",
+                "type": "file",
+                "description": "HTTP client wrapper. Uses QtNetwork to call the daemon\u2019s OpenAPI endpoints (/v1/status, /v1/summarize, /v1/notes, etc.), handles JSON serialization, and emits signals for the UI.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/openapi.yaml",
+                  "app/src/overlay_controller.cpp",
+                  "app/src/metrics_view.cpp"
+                ]
+              },
+              {
+                "path": "app/src/metrics_view.cpp",
+                "type": "file",
+                "description": "Fetches Prometheus metrics from /metrics via ApiClient and populates dashboard widgets in QML. It aggregates metrics (note rate, queue depth, GPU usage) for charts.",
+                "interacts_with": [
+                  "daemon/src/metrics.cpp",
+                  "app/src/api_client.cpp",
+                  "app/qml/DashboardPage.qml"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "app/app.qrc",
+            "type": "file",
+            "description": "Qt resource collection file enumerating QML, icons and other assets bundled into the application.",
+            "interacts_with": [
+              "app/qml/*",
+              "app/icons/*"
+            ]
+          },
+          {
+            "path": "app/CMakeLists.txt",
+            "type": "file",
+            "description": "CMake rules to build the GUI library and executable, link necessary Qt and KF6 components, embed resources and install desktop files.",
+            "interacts_with": [
+              "CMakePresets.json",
+              "cmake/toolchains.cmake"
+            ]
+          },
+          {
+            "path": "app/org.saphyre.VibeNote.desktop",
+            "type": "file",
+            "description": "XDG desktop entry used for launching the GUI and registering the Ctrl+Alt+Space shortcut via desktop environment.",
+            "interacts_with": [
+              "app/src/main.cpp"
+            ]
+          }
+        ]
+      },
+      {
+        "path": "daemon/",
+        "type": "directory",
+        "description": "Contains the VibeNote daemon implementing the localhost HTTP API, task queue, GPU guard, OCR pipeline and integrations.",
+        "children": [
+          {
+            "path": "daemon/src/",
+            "type": "directory",
+            "description": "C++ sources for the daemon. Each file implements a specific module of the API, queue, GPU guard, OCR, capture, window watcher, storage, enrichment and exports.",
+            "children": [
+              {
+                "path": "daemon/src/main.cpp",
+                "type": "file",
+                "description": "Entrypoint for the daemon. Parses command-line options or config, initializes NVML, starts the llama.cpp server if necessary, constructs queue, gpu_guard, http_server and modules, then enters the event loop.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/queue.cpp",
+                  "daemon/src/gpu_guard.cpp",
+                  "daemon/src/capture/screencast_portal.cpp",
+                  "daemon/src/windows/kwin_watcher.cpp",
+                  "daemon/src/ocr/ocr_engine.h",
+                  "daemon/src/store/sqlite_store.cpp",
+                  "daemon/src/enrich/enrich_none.cpp",
+                  "third_party/llama.cpp/server"
+                ]
+              },
+              {
+                "path": "daemon/src/http_server.cpp",
+                "type": "file",
+                "description": "Implements the REST API defined in openapi.yaml. Maps HTTP endpoints to handlers that validate requests, enqueue summarization jobs, access the database, control watch mode, and return data or errors.",
+                "interacts_with": [
+                  "daemon/openapi.yaml",
+                  "daemon/src/queue.cpp",
+                  "daemon/src/llama_client.cpp",
+                  "daemon/src/store/sqlite_store.cpp",
+                  "daemon/src/exporters/export_raw.cpp",
+                  "daemon/src/exporters/export_json.cpp",
+                  "daemon/src/exporters/export_csv.cpp",
+                  "daemon/src/enrich/enrich_openai.cpp",
+                  "daemon/src/enrich/enrich_secondary.cpp",
+                  "daemon/src/metrics.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/queue.cpp",
+                "type": "file",
+                "description": "Priority queue and concurrency controller. Maintains multiple classes (system_watch, api_interactive, bulk_export), enforces per-class concurrency limits, and coordinates with gpu_guard to decide when to dispatch jobs.",
+                "interacts_with": [
+                  "daemon/src/gpu_guard.cpp",
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/llama_client.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/gpu_guard.cpp",
+                "type": "file",
+                "description": "Uses NVML to poll GPU utilization and memory usage at regular intervals. Signals the queue when GPU headroom is insufficient and adjusts GPU offload layers by restarting llama.cpp.",
+                "interacts_with": [
+                  "daemon/src/queue.cpp",
+                  "daemon/src/llama_client.cpp",
+                  "third_party/llama.cpp/server"
+                ]
+              },
+              {
+                "path": "daemon/src/llama_client.cpp",
+                "type": "file",
+                "description": "Wraps communication with the llama.cpp server via TCP. Sends prompts, controls streaming, stops sequences and returns responses. Used by HTTP handlers and enrichment modules.",
+                "interacts_with": [
+                  "third_party/llama.cpp/server",
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/enrich/enrich_openai.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/ocr/ocr_engine.h",
+                "type": "file",
+                "description": "Abstract interface for OCR backends. Defines initialization, inference and shutdown methods. Implemented by ocr_tesseract.cpp and ocr_paddle.cpp.",
+                "interacts_with": [
+                  "daemon/src/ocr/ocr_tesseract.cpp",
+                  "daemon/src/ocr/ocr_paddle.cpp",
+                  "daemon/src/capture/screencast_portal.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/ocr/ocr_tesseract.cpp",
+                "type": "file",
+                "description": "CPU-based OCR implementation using Tesseract. Converts greyscale images to text spans and returns them as OcrSpan objects.",
+                "interacts_with": [
+                  "daemon/src/ocr/ocr_engine.h",
+                  "daemon/src/capture/frame_diff.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/ocr/ocr_paddle.cpp",
+                "type": "file",
+                "description": "Optional GPU-accelerated OCR using PaddleOCR via ONNX Runtime. Requires CUDA; fallback to ocr_tesseract if disabled.",
+                "interacts_with": [
+                  "daemon/src/ocr/ocr_engine.h",
+                  "daemon/src/capture/frame_diff.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/capture/screencast_portal.cpp",
+                "type": "file",
+                "description": "Manages Wayland screen capture via xdg-desktop-portal and PipeWire. Requests a capture session, maps DMA buffers, and produces video frames.",
+                "interacts_with": [
+                  "daemon/src/capture/frame_diff.cpp",
+                  "daemon/src/ocr/ocr_engine.h"
+                ]
+              },
+              {
+                "path": "daemon/src/capture/frame_diff.cpp",
+                "type": "file",
+                "description": "Computes frame differences to detect changed regions, reducing OCR workload. Takes frames from screencast_portal and identifies bounding boxes to feed into OCR engines.",
+                "interacts_with": [
+                  "daemon/src/capture/screencast_portal.cpp",
+                  "daemon/src/ocr/ocr_engine.h",
+                  "daemon/src/windows/kwin_watcher.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/windows/kwin_watcher.cpp",
+                "type": "file",
+                "description": "Listens to KWin DBus signals for active window changes, titles, and application identifiers. Provides context metadata for note generation and watch mode.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/capture/frame_diff.cpp",
+                  "daemon/src/store/sqlite_store.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/store/sqlite_store.cpp",
+                "type": "file",
+                "description": "Implements SQLite-based persistence. Provides methods to insert notes, windows, events and perform queries. Ensures WAL mode, per-day partitioning, FTS index and migrations defined in schema.sql.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/exporters/export_raw.cpp",
+                  "daemon/src/exporters/export_json.cpp",
+                  "daemon/src/exporters/export_csv.cpp",
+                  "daemon/src/metrics.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/store/schema.sql",
+                "type": "file",
+                "description": "SQL schema defining tables for windows, OCR spans, FTS notes and events. Ensures WAL journaling and FTS5 index. Used by sqlite_store during initialization.",
+                "interacts_with": [
+                  "daemon/src/store/sqlite_store.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/exporters/export_raw.cpp",
+                "type": "file",
+                "description": "Implements raw NDJSON export. Streams notes from the database in chronological order, chunked if required. Called by /v1/export handler when format=raw.",
+                "interacts_with": [
+                  "daemon/src/store/sqlite_store.cpp",
+                  "daemon/src/http_server.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/exporters/export_json.cpp",
+                "type": "file",
+                "description": "Exports notes as JSON schema. Validates against the canonical blueprint JSON schema (Section 12), signs manifest, and streams chunks to API clients.",
+                "interacts_with": [
+                  "daemon/src/store/sqlite_store.cpp",
+                  "daemon/src/http_server.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/exporters/export_csv.cpp",
+                "type": "file",
+                "description": "Exports notes in CSV format; ensures RFC4180 compliance and encodes as UTF-8 with BOM. Supports splitting by size. Triggered via /v1/export when format=csv or format=structured_prompts.",
+                "interacts_with": [
+                  "daemon/src/store/sqlite_store.cpp",
+                  "daemon/src/http_server.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/enrich/enrich_none.cpp",
+                "type": "file",
+                "description": "No-op enrichment module. Returns notes unchanged when no external API keys are configured.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/llama_client.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/enrich/enrich_openai.cpp",
+                "type": "file",
+                "description": "Optional enrichment using an external provider (e.g. OpenAI). Accepts initial note output and sends it to the provider for refinement. Requires API Key #1. Stores enriched notes.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/llama_client.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/enrich/enrich_secondary.cpp",
+                "type": "file",
+                "description": "Optional second enrichment stage for metrics narrative and dashboard insights. Uses API Key #2 if present to generate natural-language explanations from aggregated metrics.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/llama_client.cpp",
+                  "daemon/src/store/sqlite_store.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/config.cpp",
+                "type": "file",
+                "description": "Loads and validates YAML configuration (~/.config/VibeNote/config.yml). Provides accessors for queue settings, GPU thresholds, OCR backend and integrations. Supports live reload via /v1/config API.",
+                "interacts_with": [
+                  "daemon/src/main.cpp",
+                  "daemon/src/http_server.cpp",
+                  "app/src/settings_store.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/logging.cpp",
+                "type": "file",
+                "description": "Provides structured JSON logging to stdout/stderr. Used by all modules to emit timestamped events with severity and context.",
+                "interacts_with": [
+                  "daemon/src/main.cpp",
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/queue.cpp"
+                ]
+              },
+              {
+                "path": "daemon/src/metrics.cpp",
+                "type": "file",
+                "description": "Collects and exposes Prometheus metrics for note throughput, queue depth, GPU utilization, OCR frame rate and other internals. Serves them on /metrics.",
+                "interacts_with": [
+                  "daemon/src/http_server.cpp",
+                  "daemon/src/queue.cpp",
+                  "daemon/src/gpu_guard.cpp",
+                  "daemon/src/store/sqlite_store.cpp"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "daemon/include/",
+            "type": "directory",
+            "description": "Public header files for the daemon, exposing interfaces for unit tests and other components.",
+            "children": []
+          },
+          {
+            "path": "daemon/CMakeLists.txt",
+            "type": "file",
+            "description": "CMake rules to build the daemon executable, link dependencies (Qt6, NVML, SQLite, ONNX, PipeWire), and install openapi.yaml.",
+            "interacts_with": [
+              "cmake/toolchains.cmake",
+              "third_party/llama.cpp"
+            ]
+          },
+          {
+            "path": "daemon/openapi.yaml",
+            "type": "file",
+            "description": "OpenAPI 3.1 specification describing all REST endpoints, request/response schemas, error codes and security requirements. Used to generate clients and validate API.",
+            "interacts_with": [
+              "daemon/src/http_server.cpp",
+              "app/src/api_client.cpp"
+            ]
+          }
+        ]
+      },
+      {
+        "path": "third_party/",
+        "type": "directory",
+        "description": "External dependencies included as submodules (e.g. llama.cpp for local LLM).",
+        "children": [
+          {
+            "path": "third_party/llama.cpp/",
+            "type": "directory",
+            "description": "Pinned clone of ggerganov/llama.cpp. Compiled into the llama server used by the daemon.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "path": "models/",
+        "type": "directory",
+        "description": "Directory to store GGUF model weights for the summarizer (e.g. Qwen2.5 3B).",
+        "children": []
+      },
+      {
+        "path": "cmake/",
+        "type": "directory",
+        "description": "Common CMake toolchains and warning flags.",
+        "children": [
+          {
+            "path": "cmake/toolchains.cmake",
+            "type": "file",
+            "description": "Defines compiler/toolchain settings for cross-platform builds.",
+            "interacts_with": []
+          },
+          {
+            "path": "cmake/warnings.cmake",
+            "type": "file",
+            "description": "Lists compiler warnings and adds them as errors for project sources.",
+            "interacts_with": []
+          }
+        ]
+      },
+      {
+        "path": "packaging/systemd/",
+        "type": "directory",
+        "description": "Systemd unit files for user services.",
+        "children": [
+          {
+            "path": "packaging/systemd/vibemodel.service",
+            "type": "file",
+            "description": "Systemd user unit to run llama.cpp server on localhost.",
+            "interacts_with": [
+              "third_party/llama.cpp/server",
+              "models"
+            ]
+          },
+          {
+            "path": "packaging/systemd/vibed.service",
+            "type": "file",
+            "description": "Systemd user unit to start the VibeNote daemon API. Depends on vibemodel.service.",
+            "interacts_with": [
+              "daemon/src/main.cpp"
+            ]
+          }
+        ]
+      },
+      {
+        "path": "packaging/polkit/",
+        "type": "directory",
+        "description": "Polkit policy to allow screen capture via portals without prompts.",
+        "children": [
+          {
+            "path": "packaging/polkit/org.saphyre.vibenote.policy",
+            "type": "file",
+            "description": "Defines Polkit rules for PipeWire/portal access for screen capture.",
+            "interacts_with": []
+          }
+        ]
+      },
+      {
+        "path": "scripts/",
+        "type": "directory",
+        "description": "Automation scripts for setup, building, running, benchmarking and exporting.",
+        "children": [
+          {
+            "path": "scripts/setup-arch.sh",
+            "type": "file",
+            "description": "Installs OS dependencies (pacman packages), configures DKMS, compiles llama.cpp with CUDA, copies service files and sets up environment.",
+            "interacts_with": [
+              "third_party/llama.cpp",
+              "packaging/systemd/*",
+              "cmake/CMakeLists"
+            ]
+          },
+          {
+            "path": "scripts/build.sh",
+            "type": "file",
+            "description": "Runs CMake configure, build and install with Ninja for both app and daemon.",
+            "interacts_with": [
+              "CMakeLists.txt"
+            ]
+          },
+          {
+            "path": "scripts/run-dev.sh",
+            "type": "file",
+            "description": "Launches the model server and daemon in the foreground and runs the GUI for development.",
+            "interacts_with": [
+              "daemon/src/main.cpp",
+              "third_party/llama.cpp"
+            ]
+          },
+          {
+            "path": "scripts/bench.sh",
+            "type": "file",
+            "description": "Benchmark script measuring tokens per second, OCR throughput and end-to-end latency.",
+            "interacts_with": [
+              "daemon/src/llama_client.cpp"
+            ]
+          },
+          {
+            "path": "scripts/export-examples.sh",
+            "type": "file",
+            "description": "Demonstrates export of raw, JSON and structured prompts via the API.",
+            "interacts_with": [
+              "daemon/src/http_server.cpp"
+            ]
+          }
+        ]
+      },
+      {
+        "path": "tests/",
+        "type": "directory",
+        "description": "Unit tests and integration tests. Divided by component: daemon, app and integration. Uses CTest and mocks for PipeWire/NVML.",
+        "children": [
+          {
+            "path": "tests/daemon/",
+            "type": "directory",
+            "description": "Tests for queue, GPU guard, OCR pipeline, API handlers and storage.",
+            "children": []
+          },
+          {
+            "path": "tests/app/",
+            "type": "directory",
+            "description": "Tests for overlay controller, API client and metrics view.",
+            "children": []
+          },
+          {
+            "path": "tests/integration/",
+            "type": "directory",
+            "description": "End-to-end tests covering watch mode, summarization and export flows.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "path": ".clang-format",
+        "type": "file",
+        "description": "Clang-format configuration to enforce consistent coding style.",
+        "interacts_with": []
+      },
+      {
+        "path": ".clang-tidy",
+        "type": "file",
+        "description": "Clang-tidy configuration for static analysis rules.",
+        "interacts_with": []
+      },
+      {
+        "path": "CMakePresets.json",
+        "type": "file",
+        "description": "CMake preset definitions for debug, release and packaging builds.",
+        "interacts_with": []
+      },
+      {
+        "path": "CMakeLists.txt",
+        "type": "file",
+        "description": "Top-level CMake file orchestrating builds for app and daemon. Adds subdirectories, sets global options and installs files.",
+        "interacts_with": [
+          "app/CMakeLists.txt",
+          "daemon/CMakeLists.txt"
+        ]
+      },
+      {
+        "path": "LICENSE",
+        "type": "file",
+        "description": "License file for the project (GPL-3.0).",
+        "interacts_with": []
+      },
+      {
+        "path": "README.md",
+        "type": "file",
+        "description": "Markdown readme providing overview, features, quick start, architecture diagrams, configuration, API reference and deployment instructions.",
+        "interacts_with": [
+          "vibe_note_full_spec_implementation_plan_and_readme_for_codex.md",
+          "daemon/openapi.yaml"
+        ]
+      }
+    ]
+  }
+}

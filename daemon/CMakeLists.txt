@@ -1,0 +1,1 @@
+# Placeholder daemon CMake configuration
