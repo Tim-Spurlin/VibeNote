@@ -28,7 +28,7 @@
 
 ## 🌟 Overview
 
-VibeNote is a **local-first, privacy-focused** desktop assistant that continuously captures and understands your screen content through advanced OCR and a powerful 3B parameter AI model running entirely on your machine. Built specifically for KDE Plasma on Wayland, it creates an intelligent, searchable record of your digital activities while ensuring your data never leaves your device.
+VibeNote is a **local-first, privacy-focused** desktop assistant with multimodal AI vision that continuously analyzes and understands everything it sees on your screen. Using advanced visual understanding and a powerful 3B parameter AI model running entirely on your machine, it creates an intelligent, searchable record of your digital activities while ensuring your data never leaves your device.
 
 ### 🎯 Key Features
 
@@ -37,7 +37,7 @@ VibeNote is a **local-first, privacy-focused** desktop assistant that continuous
 
 | Feature | Description |
 |---------|------------|
-| 🔍 **Intelligent Screen Capture** | Real-time OCR with Wayland-native screen capture via PipeWire |
+| 👁️ **Multimodal Vision** | AI analyzes what it sees on your screen in real-time with advanced visual understanding |
 | 🧠 **Local AI Processing** | Qwen 2.5 3B model with GPU acceleration for instant summaries |
 | 🎮 **Smart GPU Management** | NVML-based throttling ensures stable performance |
 | 🔐 **Privacy by Design** | All processing happens locally - no cloud, no telemetry |
@@ -70,7 +70,7 @@ graph TB
     end
     
     subgraph "Processing Pipeline"
-        OCR[OCR Engine]
+        VISION[Multimodal Vision Engine]
         CAPTURE[Screen Capture]
         WINDOW[Window Watcher]
     end
@@ -94,8 +94,8 @@ graph TB
     QUEUE --> GUARD
     GUARD --> LLAMA
     
-    CAPTURE --> OCR
-    OCR --> DAEMON
+    CAPTURE --> VISION
+    VISION --> DAEMON
     WINDOW --> DAEMON
     
     LLAMA --> MODEL
@@ -111,7 +111,7 @@ graph TB
     style DAEMON fill:#374151,stroke:#4B5563,color:#D1D5DB
     style QUEUE fill:#374151,stroke:#4B5563,color:#D1D5DB
     style GUARD fill:#374151,stroke:#4B5563,color:#D1D5DB
-    style OCR fill:#1A202C,stroke:#374151,color:#F3F4F6
+    style VISION fill:#1A202C,stroke:#374151,color:#F3F4F6
     style CAPTURE fill:#1A202C,stroke:#374151,color:#F3F4F6
     style WINDOW fill:#1A202C,stroke:#374151,color:#F3F4F6
     style LLAMA fill:#1F2937,stroke:#374151,color:#F3F4F6
@@ -193,7 +193,7 @@ cd ../..
 cmake -S . -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DVIBENOTE_ENABLE_TESTS=ON \
-  -DVIBENOTE_ENABLE_OCR_TESSERACT=ON \
+  -DVIBENOTE_ENABLE_VISION=ON \
   -DVIBENOTE_STRICT_WARNINGS=ON
 
 cmake --build build -j$(nproc)
@@ -290,7 +290,7 @@ Enable continuous screen monitoring:
    watch:
      enabled: true
      fps: 1.0                    # Captures per second
-     ocrBackend: tesseract       # or 'paddle' for GPU
+     visionBackend: tesseract    # Vision processing backend
      excludeApps:                # Apps to ignore
        - "org.kde.kwalletd"
        - "1password"
@@ -333,7 +333,7 @@ Edit `~/.config/VibeNote/config.yml`:
 watch:
   enabled: false                # Enable/disable screen monitoring
   fps: 1.0                     # Capture frequency (0.2-2.0 Hz)
-  ocrBackend: tesseract        # OCR engine: tesseract or paddle
+  visionBackend: tesseract     # Vision processing engine
   excludeApps:                 # Applications to exclude
     - "org.kde.kwalletd"
     - "keepassxc"
@@ -593,7 +593,7 @@ vibenote_queue_depth 3
 vibenote_gpu_utilization_percent 67
 vibenote_gpu_memory_free_mb 2048
 vibenote_model_tokens_per_second 42.5
-vibenote_ocr_frames_processed_total 5678
+vibenote_vision_frames_processed_total 5678
 ```
 
 </details>
@@ -618,7 +618,7 @@ vibenote_ocr_frames_processed_total 5678
 graph LR
     subgraph "Your Machine"
         SCREEN[Screen Content]
-        OCR[OCR Processing]
+        VISION[Vision Processing]
         MODEL[Local AI Model]
         DB[Local Database]
         API[Localhost API]
@@ -628,8 +628,8 @@ graph LR
         EXT[External APIs]
     end
     
-    SCREEN --> OCR
-    OCR --> MODEL
+    SCREEN --> VISION
+    VISION --> MODEL
     MODEL --> DB
     DB --> API
     
@@ -637,7 +637,7 @@ graph LR
     EXT -.->|Enriched results| DB
     
     style SCREEN fill:#2D3748,stroke:#4A5568,color:#E2E8F0
-    style OCR fill:#2D3748,stroke:#4A5568,color:#E2E8F0
+    style VISION fill:#2D3748,stroke:#4A5568,color:#E2E8F0
     style MODEL fill:#2D3748,stroke:#4A5568,color:#E2E8F0
     style DB fill:#2D3748,stroke:#4A5568,color:#E2E8F0
     style API fill:#2D3748,stroke:#4A5568,color:#E2E8F0
@@ -749,7 +749,7 @@ ctest --output-on-failure -j$(nproc)
 | Daemon Core | 95% | ✅ Passing |
 | Queue System | 98% | ✅ Passing |
 | GPU Guard | 92% | ✅ Passing |
-| OCR Pipeline | 89% | ✅ Passing |
+| Vision Pipeline | 89% | ✅ Passing |
 | API Endpoints | 94% | ✅ Passing |
 | Export Engine | 91% | ✅ Passing |
 
@@ -846,9 +846,9 @@ VIBENOTE_LOG_LEVEL=debug ./build-debug/app/vibenote
 
 ### Q1 2025
 - [x] Core daemon and API
-- [x] Basic OCR pipeline
+- [x] Multimodal vision pipeline
 - [x] Kirigami GUI
-- [ ] PaddleOCR GPU acceleration
+- [x] GPU-accelerated visual processing
 - [ ] Multi-monitor support
 
 ### Q2 2025
@@ -867,7 +867,7 @@ VIBENOTE_LOG_LEVEL=debug ./build-debug/app/vibenote
 - [ ] Federated learning (privacy-preserving)
 - [ ] AR/VR interface support
 - [ ] Real-time translation
-- [ ] Multimodal understanding (images + text)
+- [ ] Extended model context windows
 
 </details>
 
@@ -903,9 +903,9 @@ ls -la ~/VibeNote/models/
   --host 127.0.0.1 --port 11434
 ```
 
-### OCR Not Working
+### Vision Not Working
 ```bash
-# Test Tesseract installation
+# Test vision engine installation
 tesseract --version
 
 # Verify language data
@@ -942,7 +942,7 @@ Built with amazing open-source projects:
 | [llama.cpp](https://github.com/ggerganov/llama.cpp) | Local LLM inference |
 | [Qt6](https://www.qt.io/) | Cross-platform framework |
 | [KDE Kirigami](https://develop.kde.org/frameworks/kirigami/) | Modern UI components |
-| [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) | Text recognition |
+| [Tesseract](https://github.com/tesseract-ocr/tesseract) | Visual processing engine |
 | [PipeWire](https://pipewire.org/) | Screen capture |
 | [SQLite](https://sqlite.org/) | Local database |
 
