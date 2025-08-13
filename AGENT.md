@@ -1,4 +1,4 @@
-VibeNote Agent Specification
+# VibeNote Agent Specification
 
 This document instructs a Codex agent on how to build the VibeNote project from scratch. It describes every directory and file that must be created, how each component communicates with the others, and prescribes strict system‑level constraints (Wayland‑only, Zen kernel, NVML, etc.). Use this blueprint as the single source of truth when generating code; do not invent any new files or behaviours outside this schema. Follow the do/don’t guidelines exactly and ensure the final repository matches this structure and behaviour.
 Global guidelines
@@ -27,9 +27,9 @@ Agent tasks
 
     Provide no extra files. Only the files declared in this schema should be present. Any auto‑generated files (like .kcfgc) will be produced by the build system and should be ignored by version control.
 
-JSON schema
+# JSON schema
 
-The following JSON object describes the entire repository layout. Each element has:
+# The following JSON object describes the entire repository layout. Each element has:
 
     path: relative path from the repository root.
 
@@ -40,7 +40,7 @@ The following JSON object describes the entire repository layout. Each element h
     interacts_with: a list of other files (within or outside this folder) that this file depends upon or communicates with. Use these to wire up imports, function calls, HTTP requests, logging, etc.
 
     implementation (files only): prescriptive guidance on what to implement in this file—classes, functions, logic, or configuration. It may reference system constraints. If implementation is omitted, the description alone is sufficient and the file likely contains static data (e.g. schema.sql, openapi.yaml, CMake helpers).
-
+```
 {
   "version": "1.0",
   "repository": "VibeNote",
@@ -655,3 +655,4 @@ The following JSON object describes the entire repository layout. Each element h
     }
   ]
 }
+```
