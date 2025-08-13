@@ -1,8 +1,19 @@
+#include <QBuffer>
 #include <QDateTime>
-#include <QIODevice>
-#include <QString>
+#include <QHttpServer>
+#include <QHttpServerResponse>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QUrlQuery>
+#include <array>
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <unordered_map>
 
 #include "store/sqlite_store.h"
+#include "logging.h"
 
 namespace exporters {
 void exportCsv(SqliteStore *store, const QDateTime &from, const QDateTime &to,
@@ -12,28 +23,188 @@ void exportStructuredPrompts(SqliteStore *store, const QDateTime &from,
                              QChar delimiter = ',');
 } // namespace exporters
 
-class HttpServer {
-public:
-    explicit HttpServer(SqliteStore *store) : store_(store) {}
+namespace vibenote {
 
-    void exportNotes(const QString &format, const QDateTime &from,
-                     const QDateTime &to, QIODevice *output,
-                     QChar delimiter = ',');
+enum class TaskType { kWatch, kInteractive, kExport };
+enum class TaskPriority { kHigh = 0, kNormal = 1, kLow = 2, kCount };
 
-private:
-    SqliteStore *store_;
+struct Task {
+  std::uint64_t id{};
+  TaskType type{TaskType::kInteractive};
+  TaskPriority priority{TaskPriority::kNormal};
+  std::string prompt;
+  std::function<void(const std::string &)> callback;
 };
 
-void HttpServer::exportNotes(const QString &format, const QDateTime &from,
-                             const QDateTime &to, QIODevice *output,
-                             QChar delimiter) {
-    if (!output) {
-        return;
-    }
+class TaskQueue {
+ public:
+  struct Stats {
+    std::array<std::size_t, static_cast<std::size_t>(TaskPriority::kCount)> queued{};
+    std::unordered_map<TaskType, std::size_t> running;
+  };
 
-    if (format == QLatin1String("csv")) {
-        exporters::exportCsv(store_, from, to, output, delimiter);
-    } else if (format == QLatin1String("structured_prompts")) {
-        exporters::exportStructuredPrompts(store_, from, to, output, delimiter);
+  bool enqueue(Task task);
+  Stats getStats() const;
+};
+
+} // namespace vibenote
+
+class LlamaClient {
+ public:
+  QString streamCompletion(const QString &prompt, const QJsonObject &params,
+                           std::function<void(const QString &)> callback);
+};
+
+class Metrics {
+ public:
+  QByteArray serialize() const { return {}; }
+};
+
+class ConfigManager {
+ public:
+  QJsonObject load() const { return {}; }
+  void update(const QJsonObject &) {}
+};
+
+class HttpServer : public QObject {
+  Q_OBJECT
+ public:
+  HttpServer(vibenote::TaskQueue *queue, LlamaClient *llama,
+             SqliteStore *store, Metrics *metrics, ConfigManager *config,
+             QObject *parent = nullptr);
+
+  bool start(quint16 port);
+  void stop();
+
+ private:
+  QHttpServer server_;
+  vibenote::TaskQueue *queue_;
+  LlamaClient *llama_;
+  SqliteStore *store_;
+  Metrics *metrics_;
+  ConfigManager *config_;
+};
+
+HttpServer::HttpServer(vibenote::TaskQueue *queue, LlamaClient *llama,
+                       SqliteStore *store, Metrics *metrics,
+                       ConfigManager *config, QObject *parent)
+    : QObject(parent),
+      queue_(queue),
+      llama_(llama),
+      store_(store),
+      metrics_(metrics),
+      config_(config) {}
+
+bool HttpServer::start(quint16 port) {
+  server_.route(QStringLiteral("/v1/status"), [this]() {
+    QJsonObject obj;
+    if (queue_) {
+      auto stats = queue_->getStats();
+      QJsonArray queued;
+      for (std::size_t q : stats.queued) {
+        queued.append(static_cast<qint64>(q));
+      }
+      obj.insert(QStringLiteral("queued"), queued);
+      QJsonObject running;
+      for (const auto &it : stats.running) {
+        running.insert(QString::number(static_cast<int>(it.first)),
+                       static_cast<qint64>(it.second));
+      }
+      obj.insert(QStringLiteral("running"), running);
     }
+    return QHttpServerResponse(QJsonDocument(obj).toJson(),
+                               QStringLiteral("application/json"));
+  });
+
+  server_.route(QStringLiteral("/v1/notes"), [this](const QHttpServerRequest &req) {
+    if (!store_) {
+      return QHttpServerResponse(QHttpServerResponder::StatusCode::InternalServerError);
+    }
+    QUrlQuery query(req.query());
+    qint64 from = query.queryItemValue("from").toLongLong();
+    qint64 to = query.queryItemValue("to").toLongLong();
+    QString app = query.queryItemValue("app");
+    int limit = query.queryItemValue("limit").toInt();
+    QJsonArray notes = store_->queryNotes(from, to, app, limit);
+    return QHttpServerResponse(QJsonDocument(notes).toJson(),
+                               QStringLiteral("application/json"));
+  });
+
+  server_.route(QStringLiteral("/v1/export"), [this](const QHttpServerRequest &req) {
+    if (!store_) {
+      return QHttpServerResponse(QHttpServerResponder::StatusCode::InternalServerError);
+    }
+    QUrlQuery query(req.query());
+    QString format = query.queryItemValue("format");
+    QDateTime from = QDateTime::fromString(query.queryItemValue("from"), Qt::ISODate);
+    QDateTime to = QDateTime::fromString(query.queryItemValue("to"), Qt::ISODate);
+    QByteArray data;
+    QBuffer buffer(&data);
+    buffer.open(QIODevice::WriteOnly);
+    if (format == QStringLiteral("csv")) {
+      exporters::exportCsv(store_, from, to, &buffer);
+      return QHttpServerResponse(data, QStringLiteral("text/csv"));
+    } else if (format == QStringLiteral("structured_prompts")) {
+      exporters::exportStructuredPrompts(store_, from, to, &buffer);
+      return QHttpServerResponse(data, QStringLiteral("text/csv"));
+    } else {
+      QJsonArray notes = store_->queryNotes(from.toSecsSinceEpoch(),
+                                            to.toSecsSinceEpoch(), QString(), 0);
+      return QHttpServerResponse(QJsonDocument(notes).toJson(),
+                                 QStringLiteral("application/json"));
+    }
+  });
+
+  server_.route(QStringLiteral("/v1/summarize"),
+                QHttpServerRequest::Method::Post,
+                [this](const QHttpServerRequest &req) {
+    if (!llama_) {
+      return QHttpServerResponse(QHttpServerResponder::StatusCode::InternalServerError);
+    }
+    QJsonDocument doc = QJsonDocument::fromJson(req.body());
+    QString prompt = doc.object().value(QStringLiteral("text")).toString();
+    QString output;
+    llama_->streamCompletion(prompt, {}, [&](const QString &tok) { output += tok; });
+    QJsonObject res{{QStringLiteral("summary"), output}};
+    return QHttpServerResponse(QJsonDocument(res).toJson(),
+                               QStringLiteral("application/json"));
+  });
+
+  server_.route(QStringLiteral("/v1/watch/start"), [this]() {
+    return QHttpServerResponse(QStringLiteral("OK"));
+  });
+
+  server_.route(QStringLiteral("/v1/watch/stop"), [this]() {
+    return QHttpServerResponse(QStringLiteral("OK"));
+  });
+
+  server_.route(QStringLiteral("/v1/config"), [this]() {
+    QJsonObject cfg = config_ ? config_->load() : QJsonObject{};
+    return QHttpServerResponse(QJsonDocument(cfg).toJson(),
+                               QStringLiteral("application/json"));
+  });
+
+  server_.route(QStringLiteral("/v1/config"),
+                QHttpServerRequest::Method::Put,
+                [this](const QHttpServerRequest &req) {
+    if (!config_) {
+      return QHttpServerResponse(QHttpServerResponder::StatusCode::InternalServerError);
+    }
+    QJsonDocument doc = QJsonDocument::fromJson(req.body());
+    config_->update(doc.object());
+    return QHttpServerResponse(QHttpServerResponder::StatusCode::Ok);
+  });
+
+  server_.route(QStringLiteral("/metrics"), [this]() {
+    QByteArray data = metrics_ ? metrics_->serialize() : QByteArrayLiteral("");
+    return QHttpServerResponse(data, QStringLiteral("text/plain"));
+  });
+
+  const auto actualPort = server_.listen(QHostAddress::LocalHost, port);
+  return actualPort == port;
 }
+
+void HttpServer::stop() { server_.close(); }
+
+#include "moc_http_server.cpp"
+
