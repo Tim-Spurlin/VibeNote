@@ -1,45 +1,46 @@
-# VibeNote Agent Specification
+# AGENT.md
+## VibeNote Agent Specification
 
 This document instructs a Codex agent on how to build the VibeNote project from scratch. It describes every directory and file that must be created, how each component communicates with the others, and prescribes strict system‑level constraints (Wayland‑only, Zen kernel, NVML, etc.). Use this blueprint as the single source of truth when generating code; do not invent any new files or behaviours outside this schema. Follow the do/don’t guidelines exactly and ensure the final repository matches this structure and behaviour.
 Global guidelines
 
-    System constraints: VibeNote runs on Arch Linux with the Zen kernel, pure Wayland (KWin/Plasma), and an NVIDIA RTX 3050 Ti using the nvidia‑open‑dkms driver. Never depend on X11, xrandr, xclip, xsel or any X11 tools. For display control use wlr‑randr. For clipboard operations use wl‑copy/wl‑paste. For audio and screen capture use PipeWire and xdg‑desktop‑portal; do not suggest PulseAudio or X11 screen‑capture utilities. Use NVML for GPU telemetry; never use nouveau or non‑DKMS drivers.
+   - System constraints: VibeNote runs on Arch Linux with the Zen kernel, pure Wayland (KWin/Plasma), and an NVIDIA RTX 3050 Ti using the nvidia‑open‑dkms driver. Never depend on X11, xrandr, xclip, xsel or any X11 tools. For display control use wlr‑randr. For clipboard operations use wl‑copy/wl‑paste. For audio and screen capture use PipeWire and xdg‑desktop‑portal; do not suggest PulseAudio or X11 screen‑capture utilities. Use NVML for GPU telemetry; never use nouveau or non‑DKMS drivers.
 
-    Languages & tooling: The GUI is written in C++20 and QML using Qt 6 and Kirigami. The daemon is C++20. Build with CMake presets and Ninja; follow warnings‑as‑errors and use the provided toolchains. SQLite stores notes; SQL schema is versioned in daemon/src/store/schema.sql. Use ONNX Runtime only for optional OCR acceleration (PaddleOCR). All HTTP endpoints must conform to the openapi.yaml. Use Prometheus exposition for metrics. Unit tests live under tests/ and run via CTest. Enforce the .clang-format and .clang-tidy rules.
+   - Languages & tooling: The GUI is written in C++20 and QML using Qt 6 and Kirigami. The daemon is C++20. Build with CMake presets and Ninja; follow warnings‑as‑errors and use the provided toolchains. SQLite stores notes; SQL schema is versioned in daemon/src/store/schema.sql. Use ONNX Runtime only for optional OCR acceleration (PaddleOCR). All HTTP endpoints must conform to the openapi.yaml. Use Prometheus exposition for metrics. Unit tests live under tests/ and run via CTest. Enforce the .clang-format and .clang-tidy rules.
 
-    Sandbox & security: The daemon listens only on localhost and must never bind to external interfaces. Concurrency is controlled via a priority queue; never dispatch more jobs than the GPU can handle. Use NVML to cap GPU utilisation and, when threshold is exceeded, delay further requests. Watch mode (OCR capture) must be opt‑in and respect user privacy. Never transmit data off the machine unless the user provides external API keys; even then, restrict calls to the allowed enrichment endpoints.
+   - Sandbox & security: The daemon listens only on localhost and must never bind to external interfaces. Concurrency is controlled via a priority queue; never dispatch more jobs than the GPU can handle. Use NVML to cap GPU utilisation and, when threshold is exceeded, delay further requests. Watch mode (OCR capture) must be opt‑in and respect user privacy. Never transmit data off the machine unless the user provides external API keys; even then, restrict calls to the allowed enrichment endpoints.
 
-    Do not: Don’t rely on X11 libraries or tools. Don’t suggest installing non‑DKMS Nvidia drivers. Don’t embed secrets or API keys in the code. Don’t block the GUI thread when waiting on the daemon; all API calls must be asynchronous via signals/slots. Don’t use blocking IO in the daemon’s HTTP handlers; use appropriate thread pools.
+   - Do not: Don’t rely on X11 libraries or tools. Don’t suggest installing non‑DKMS Nvidia drivers. Don’t embed secrets or API keys in the code. Don’t block the GUI thread when waiting on the daemon; all API calls must be asynchronous via signals/slots. Don’t use blocking IO in the daemon’s HTTP handlers; use appropriate thread pools.
+    
+## Agent tasks
 
-Agent tasks
+   - Create the directory tree as defined under structure in the JSON below. Each directory must exist; create all listed files with their names and relative paths.
 
-    Create the directory tree as defined under structure in the JSON below. Each directory must exist; create all listed files with their names and relative paths.
+   - Populate each file according to its description and implementation fields. The implementation guidance may reference other modules that must be created concurrently. If a file has an interacts_with array, ensure its implementation calls into, imports, or otherwise cooperates with the referenced files.
 
-    Populate each file according to its description and implementation fields. The implementation guidance may reference other modules that must be created concurrently. If a file has an interacts_with array, ensure its implementation calls into, imports, or otherwise cooperates with the referenced files.
+   - Adhere to interactions. The interacts_with entries define explicit communication channels—function calls, API requests, SQL queries or data flow. Do not add undeclared dependencies.
 
-    Adhere to interactions. The interacts_with entries define explicit communication channels—function calls, API requests, SQL queries or data flow. Do not add undeclared dependencies.
+   - Follow the DO/DO NOT sections (global guidelines) when coding. Respect Wayland‑only constraints and GPU/CPU balancing semantics. Use asynchronous patterns and ensure thread‑safety.
 
-    Follow the DO/DO NOT sections (global guidelines) when coding. Respect Wayland‑only constraints and GPU/CPU balancing semantics. Use asynchronous patterns and ensure thread‑safety.
+   - Generate CMake files with proper linking. Link each module to Qt6 modules, KF6 libraries, NVML, SQLite and other libraries as needed. Respect the cmake/ helpers and use them correctly.
 
-    Generate CMake files with proper linking. Link each module to Qt6 modules, KF6 libraries, NVML, SQLite and other libraries as needed. Respect the cmake/ helpers and use them correctly.
+   - Implement tests under tests/. Use mocks for NVML, PipeWire and external APIs. Integration tests must simulate watch mode, queue behaviour, export flows and metric exposure.
 
-    Implement tests under tests/. Use mocks for NVML, PipeWire and external APIs. Integration tests must simulate watch mode, queue behaviour, export flows and metric exposure.
-
-    Provide no extra files. Only the files declared in this schema should be present. Any auto‑generated files (like .kcfgc) will be produced by the build system and should be ignored by version control.
+   - Provide no extra files. Only the files declared in this schema should be present. Any auto‑generated files (like .kcfgc) will be produced by the build system and should be ignored by version control.
 
 # JSON schema
 
-# The following JSON object describes the entire repository layout. Each element has:
+## The following JSON object describes the entire repository layout. Each element has:
 
-    path: relative path from the repository root.
+   - path: relative path from the repository root.
 
-    type: either directory or file.
+   - type: either directory or file.
 
-    description: a human‑readable explanation of the purpose of this file or directory.
+   - description: a human‑readable explanation of the purpose of this file or directory.
 
-    interacts_with: a list of other files (within or outside this folder) that this file depends upon or communicates with. Use these to wire up imports, function calls, HTTP requests, logging, etc.
+   - interacts_with: a list of other files (within or outside this folder) that this file depends upon or communicates with. Use these to wire up imports, function calls, HTTP requests, logging, etc.
 
-    implementation (files only): prescriptive guidance on what to implement in this file—classes, functions, logic, or configuration. It may reference system constraints. If implementation is omitted, the description alone is sufficient and the file likely contains static data (e.g. schema.sql, openapi.yaml, CMake helpers).
+   - implementation (files only): prescriptive guidance on what to implement in this file—classes, functions, logic, or configuration. It may reference system constraints. If implementation is omitted, the description alone is sufficient and the file likely contains static data (e.g. schema.sql, openapi.yaml, CMake helpers).
 ```
 {
   "version": "1.0",
