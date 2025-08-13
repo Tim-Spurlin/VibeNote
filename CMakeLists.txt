@@ -14,7 +14,30 @@ option(VIBENOTE_ENABLE_TESTS "Build VibeNote test suite" ON)
 option(VIBENOTE_STRICT_WARNINGS "Treat warnings as errors" ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Network DBus Gui Quick QuickControls2 Qml)
-find_package(KF6 REQUIRED COMPONENTS I18n Config Kirigami GlobalAccel)
+find_package(ECM 6.0.0 REQUIRED NO_MODULE)
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+include(KDEInstallDirs)
+include(KDECMakeSettings)
+include(KDECompilerSettings NO_POLICY_SCOPE)
+include(FeatureSummary)
+
+find_package(Qt6 REQUIRED COMPONENTS
+  Core Gui Qml Quick QuickControls2 Svg
+)
+
+find_package(KF6 REQUIRED COMPONENTS
+  CoreAddons
+  I18n
+  Kirigami
+  GuiAddons
+  Config
+  KIO
+  IconThemes
+  QQC2DesktopStyle
+)
+
+feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
+
 
 add_subdirectory(app)
 add_subdirectory(daemon)
