@@ -1,6 +1,6 @@
 # AGENT.md
 ## VibeNote Agent Specification
-
+### DO NOT TOUCH THE README.md LOCATED IN THE ROOT OF THIS REPOSITORY. IT IS OFF LIMITS AND NEVER TO BE CHANGED UNLESS YOU ARE ASKED SPECIFICALLY BUT EVEN IF YOU ARE ASKED TO MAKE CHANGES AT SOME POINT TO THE README.md in the root, YOU ARE STILL REEQUIRED TO VERIFY AND MAKE SURE THAT THE USER'S REQUEST IS SOLIDFIED BY CERTAINTY
 This document instructs a Codex agent on how to build the VibeNote project from scratch. It describes every directory and file that must be created, how each component communicates with the others, and prescribes strict system‑level constraints (Wayland‑only, Zen kernel, NVML, etc.). Use this blueprint as the single source of truth when generating code; do not invent any new files or behaviours outside this schema. Follow the do/don’t guidelines exactly and ensure the final repository matches this structure and behaviour.
 Global guidelines
 
