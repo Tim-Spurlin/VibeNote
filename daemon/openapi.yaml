@@ -1,6 +1,346 @@
 openapi: 3.1.0
 info:
   title: VibeNote API
-  version: 0.0.0
-paths: {}
-# Placeholder OpenAPI spec
+  version: 1.0.0
+  description: Local AI-powered note-taking daemon API
+  contact:
+    email: support@saphyre.solutions
+servers:
+  - url: http://127.0.0.1:18080
+    description: Local daemon (localhost only)
+paths:
+  /v1/status:
+    get:
+      summary: Get daemon status
+      operationId: getStatus
+      responses:
+        '200':
+          description: Current daemon status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uptime:
+                    type: integer
+                    description: Uptime in seconds
+                  queue_depth:
+                    type: integer
+                  gpu:
+                    type: object
+                    properties:
+                      utilization_percent:
+                        type: number
+                      memory_free_mb:
+                        type: integer
+                      throttled:
+                        type: boolean
+                  watch:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                      fps:
+                        type: number
+                  model:
+                    type: object
+                    properties:
+                      loaded:
+                        type: boolean
+                      name:
+                        type: string
+  
+  /v1/summarize:
+    post:
+      summary: Summarize text using local AI
+      operationId: summarize
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+              properties:
+                prompt:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+                context:
+                  type: string
+                stream:
+                  type: boolean
+                  default: false
+                priority:
+                  type: string
+                  enum: [system_watch, api_interactive, bulk_export]
+                  default: api_interactive
+      responses:
+        '200':
+          description: Summarization complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: string
+                  tokens_used:
+                    type: integer
+                  processing_time_ms:
+                    type: integer
+            text/event-stream:
+              schema:
+                type: string
+                description: Server-sent events for streaming
+        '429':
+          description: Queue full or rate limited
+        '400':
+          description: Invalid request
+  
+  /v1/notes:
+    get:
+      summary: Query stored notes
+      operationId: getNotes
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: app
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Notes retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+                  total:
+                    type: integer
+                  has_more:
+                    type: boolean
+    
+    post:
+      summary: Ingest external note
+      operationId: ingestNote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                app:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Note created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  note_id:
+                    type: integer
+  
+  /v1/export:
+    get:
+      summary: Export notes in various formats
+      operationId: exportNotes
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [raw, json, csv, structured_prompts]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: range
+          in: query
+          schema:
+            type: string
+            pattern: '^[0-9]+[dwmy]$'
+            description: Alternative to from/to (e.g. 7d, 1w, 1m)
+      responses:
+        '200':
+          description: Export successful
+          content:
+            application/json:
+              schema:
+                type: object
+            text/csv:
+              schema:
+                type: string
+            application/x-ndjson:
+              schema:
+                type: string
+  
+  /v1/watch/start:
+    post:
+      summary: Enable watch mode
+      operationId: startWatch
+      responses:
+        '200':
+          description: Watch mode enabled
+        '403':
+          description: Permission denied for screen capture
+  
+  /v1/watch/stop:
+    post:
+      summary: Disable watch mode
+      operationId: stopWatch
+      responses:
+        '200':
+          description: Watch mode disabled
+  
+  /v1/config:
+    get:
+      summary: Get current configuration
+      operationId: getConfig
+      responses:
+        '200':
+          description: Current configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+    
+    put:
+      summary: Update configuration
+      operationId: updateConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Config'
+      responses:
+        '200':
+          description: Configuration updated
+        '400':
+          description: Invalid configuration
+  
+  /metrics:
+    get:
+      summary: Prometheus metrics endpoint
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Prometheus exposition format
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    Note:
+      type: object
+      properties:
+        note_id:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        window:
+          type: object
+          properties:
+            title:
+              type: string
+            app_name:
+              type: string
+            pid:
+              type: integer
+        summary:
+          type: string
+        enriched_summary:
+          type: string
+        metadata:
+          type: object
+    
+    Config:
+      type: object
+      properties:
+        watch:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            fps:
+              type: number
+              minimum: 0.1
+              maximum: 10
+        gpu:
+          type: object
+          properties:
+            threshold:
+              type: number
+              minimum: 0
+              maximum: 100
+            vram_headroom_mb:
+              type: integer
+        queue:
+          type: object
+          properties:
+            max_depth:
+              type: integer
+        integrations:
+          type: object
+          properties:
+            primary_api_key:
+              type: string
+            secondary_api_key:
+              type: string
+
+  securitySchemes:
+    LocalOnly:
+      type: apiKey
+      in: header
+      name: X-Local-Auth
+      description: Daemon only accepts connections from localhost
+
+security:
+  - LocalOnly: []
