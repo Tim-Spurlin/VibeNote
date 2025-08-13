@@ -1,3 +1,5 @@
 <RCC>
-  <!-- Placeholder resources -->
+  <qresource prefix="/">
+    <file>qml/Main.qml</file>
+  </qresource>
 </RCC>
