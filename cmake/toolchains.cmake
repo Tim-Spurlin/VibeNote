@@ -22,7 +22,18 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--as-needed")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--as-needed")
 
 # System library and Qt6 locations for Arch Linux
-list(PREPEND CMAKE_PREFIX_PATH "/usr" "/usr/lib/cmake/Qt6")
+# Allow overriding the Qt installation path through environment variables so
+# IDEs like KDevelop can discover Qt6 when installed outside the default
+# system prefix. Qt's CMake files are typically under
+# <prefix>/lib/cmake/Qt6.
+if(DEFINED ENV{Qt6_DIR})
+  list(PREPEND CMAKE_PREFIX_PATH "$ENV{Qt6_DIR}")
+elseif(DEFINED ENV{QT6_DIR})
+  list(PREPEND CMAKE_PREFIX_PATH "$ENV{QT6_DIR}")
+endif()
+
+# Standard search prefixes for Arch Linux
+list(APPEND CMAKE_PREFIX_PATH "/usr" "/usr/lib/qt6" "/usr/lib/cmake/Qt6")
 
 # Optional CUDA configuration for PaddleOCR acceleration
 if(ENABLE_PADDLE_OCR)
