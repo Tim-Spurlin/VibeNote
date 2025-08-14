@@ -1,76 +1,59 @@
-#include <QCoreApplication>
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QQmlEngine>
-
-#include <KAboutData>
+#include <QIcon>
 #include <KLocalizedString>
-#include <KGlobalAccel>
+#include <KLocalizedContext>
 
-#include <QKeySequence>
-#include <QUrl>
-#include <QObject>
+#ifdef HAVE_KABOUTDATA
+#include <KAboutData>
+#endif
 
-#include "overlay_controller.h"
 #include "api_client.h"
-#include "settings_store.h"
-#include "metrics_view.h"
 
 int main(int argc, char *argv[]) {
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-    QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
+    
+    // Set application metadata
+    app.setOrganizationName(QStringLiteral("VibeNote"));
+    app.setOrganizationDomain(QStringLiteral("vibenote.local"));
+    app.setApplicationName(QStringLiteral("VibeNote"));
+    app.setApplicationDisplayName(QStringLiteral("VibeNote"));
+    app.setWindowIcon(QIcon::fromTheme(QStringLiteral("vibenote")));
 
-    KLocalizedString::setApplicationDomain("vibenote");
-
+#ifdef HAVE_KABOUTDATA
     KAboutData aboutData(
         QStringLiteral("vibenote"),
         i18n("VibeNote"),
-        QStringLiteral("0.1"),
-        i18n("Vibe note taking application"),
+        QStringLiteral("1.0.0"),
+        i18n("Local-first AI note-taking"),
         KAboutLicense::GPL_V3,
-        i18n("© 2024 Saphyre"));
-    aboutData.addAuthor(i18n("Tim Spurlin"), i18n("Maintainer"),
-                        QStringLiteral("Tim.Spurlin@SaphyreSolutions.com"));
+        i18n("© 2025 VibeNote Contributors")
+    );
     KAboutData::setApplicationData(aboutData);
+#endif
 
-    SettingsStore *settings = new SettingsStore();
-    ApiClient *api = new ApiClient(settings->daemonUrl());
-    OverlayController *overlay = new OverlayController(api);
-    MetricsView *metrics = new MetricsView(api);
-
-    qmlRegisterSingletonInstance("org.saphyre.vibenote", 1, 0, "Settings", settings);
-    qmlRegisterSingletonInstance("org.saphyre.vibenote", 1, 0, "Api", api);
-    qmlRegisterSingletonInstance("org.saphyre.vibenote", 1, 0, "Overlay", overlay);
-    qmlRegisterSingletonInstance("org.saphyre.vibenote", 1, 0, "Metrics", metrics);
-
-    const QKeySequence toggleSequence(Qt::CTRL | Qt::ALT | Qt::Key_Space);
-    KGlobalAccel::self()->setDefaultShortcut(overlay->toggleAction(), {toggleSequence});
-    KGlobalAccel::self()->setShortcut(overlay->toggleAction(), {toggleSequence});
-
+    // Create API client
+    ApiClient apiClient;
+    
+    // Setup QML engine
     QQmlApplicationEngine engine;
-    const QUrl url(QStringLiteral("qrc:/Main.qml"));
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated, &app,
-                     [url](QObject *obj, const QUrl &objUrl) {
-                         if (!obj && objUrl == url)
-                             QCoreApplication::exit(-1);
-                     },
-                     Qt::QueuedConnection);
+    
+    // Add localization context
+    engine.rootContext()->setContextObject(new KLocalizedContext(&engine));
+    
+    // Register API client
+    engine.rootContext()->setContextProperty(QStringLiteral("apiClient"), &apiClient);
+    
+    // Load QML
+    const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
+                     &app, [url](QObject *obj, const QUrl &objUrl) {
+        if (!obj && url == objUrl)
+            QCoreApplication::exit(-1);
+    }, Qt::QueuedConnection);
+    
     engine.load(url);
-
-    if (engine.rootObjects().isEmpty())
-        return -1;
-
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, settings,
-                     &QObject::deleteLater);
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, api,
-                     &QObject::deleteLater);
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, overlay,
-                     &QObject::deleteLater);
-    QObject::connect(&app, &QCoreApplication::aboutToQuit, metrics,
-                     &QObject::deleteLater);
-
+    
     return app.exec();
 }
-

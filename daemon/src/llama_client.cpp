@@ -10,43 +10,8 @@
 #include <QUuid>
 #include <functional>
 
+#include "llama_client.h"
 #include "logging.h"
-
-class LlamaClient : public QObject {
-    Q_OBJECT
-public:
-    explicit LlamaClient(QObject *parent = nullptr);
-    ~LlamaClient() override;
-
-    void connectToServer(const QString &host, quint16 port);
-    bool spawnServer(const QString &model_path, int ngl, const QStringList &other_params);
-    QString streamCompletion(const QString &prompt, const QJsonObject &params,
-                             std::function<void(const QString &)> callback);
-    void stopGeneration(const QString &request_id);
-    bool restartWithNgl(int new_ngl);
-
-signals:
-    void connected();
-    void disconnected();
-    void error(const QString &msg);
-
-private slots:
-    void onReadyRead();
-    void onDisconnected();
-    void onErrorOccurred(QAbstractSocket::SocketError err);
-
-private:
-    void attemptReconnect();
-    QString buildRequest(const QString &path, const QJsonObject &payload) const;
-    QString generateRequestId() const;
-
-    QTcpSocket *socket_;
-    QProcess *server_process_;
-    QString host_;
-    quint16 port_;
-    int ngl_;
-    QString model_path_;
-    QStringList extra_params_;
 
     QMutex mutex_;
     QHash<QString, std::function<void(const QString &)>> callbacks_;
@@ -109,7 +74,7 @@ bool LlamaClient::spawnServer(const QString &model_path, int ngl, const QStringL
     server_process_ = new QProcess(this);
     QString program = QStringLiteral("third_party/llama.cpp/server");
     QStringList args;
-    args << "--model" << model_path_ << "--host" << host_ << "--port" << QString::number(port_)
+    args << QStringLiteral("--model") << model_path_ << QStringLiteral("--host") << host_ << QStringLiteral("--port") << QString::number(port_)
          << "--ngl" << QString::number(ngl_);
     args << extra_params_;
 
@@ -151,9 +116,9 @@ QString LlamaClient::streamCompletion(const QString &prompt, const QJsonObject &
                                       std::function<void(const QString &)> callback) {
     QString id = generateRequestId();
     QJsonObject payload = params;
-    payload.insert("id", id);
-    payload.insert("prompt", prompt);
-    payload.insert("stream", true);
+    payload.insert(QStringLiteral("id"), id);
+    payload.insert(QStringLiteral("prompt"), prompt);
+    payload.insert(QStringLiteral("stream"), true);
 
     QString request = buildRequest(QStringLiteral("/v1/completions"), payload);
     {
@@ -165,7 +130,7 @@ QString LlamaClient::streamCompletion(const QString &prompt, const QJsonObject &
 }
 
 void LlamaClient::stopGeneration(const QString &request_id) {
-    QJsonObject payload{{"id", request_id}};
+    QJsonObject payload{QStringLiteral("id"), request_id}};
     QString request = buildRequest(QStringLiteral("/v1/stop"), payload);
     socket_->write(request.toUtf8());
 }

@@ -14,6 +14,7 @@
 
 #include "store/sqlite_store.h"
 #include "logging.h"
+#include "http_server.h"
 
 namespace exporters {
 void exportCsv(SqliteStore *store, const QDateTime &from, const QDateTime &to,
@@ -65,23 +66,6 @@ class ConfigManager {
   QJsonObject load() const { return {}; }
   void update(const QJsonObject &) {}
 };
-
-class HttpServer : public QObject {
-  Q_OBJECT
- public:
-  HttpServer(vibenote::TaskQueue *queue, LlamaClient *llama,
-             SqliteStore *store, Metrics *metrics, ConfigManager *config,
-             QObject *parent = nullptr);
-
-  bool start(quint16 port);
-  void stop();
-
- private:
-  QHttpServer server_;
-  vibenote::TaskQueue *queue_;
-  LlamaClient *llama_;
-  SqliteStore *store_;
-  Metrics *metrics_;
   ConfigManager *config_;
 };
 
@@ -207,4 +191,3 @@ bool HttpServer::start(quint16 port) {
 void HttpServer::stop() { server_.close(); }
 
 #include "moc_http_server.cpp"
-

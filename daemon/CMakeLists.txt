@@ -1,75 +1,56 @@
-cmake_minimum_required(VERSION 3.26)
-
-project(vibenote_daemon LANGUAGES CXX)
-
-find_package(Qt6 REQUIRED COMPONENTS Core Network DBus)
-qt_standard_project_setup()
-
-include(${CMAKE_SOURCE_DIR}/cmake/warnings.cmake)
-
-file(GLOB_RECURSE VIBENOTE_DAEMON_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-)
-
-add_executable(vibenote_daemon ${VIBENOTE_DAEMON_SOURCES})
-
-set_target_properties(vibenote_daemon PROPERTIES
-    AUTOMOC ON
-    BUILD_RPATH "$ORIGIN/../lib"
-    INSTALL_RPATH "$ORIGIN/../lib"
-)
-
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-target_include_directories(vibenote_daemon
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
+find_package(Qt6 REQUIRED COMPONENTS Core Network Sql Gui HttpServer)
 find_package(SQLite3 REQUIRED)
-find_package(Threads REQUIRED)
-find_library(NVML_LIBRARY nvidia-ml)
-if(NOT NVML_LIBRARY)
-    message(FATAL_ERROR "nvidia-ml library not found")
-endif()
-
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(PipeWire REQUIRED IMPORTED_TARGET libpipewire-0.3)
-pkg_check_modules(Portal REQUIRED IMPORTED_TARGET libportal)
-pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract)
-pkg_check_modules(Leptonica REQUIRED IMPORTED_TARGET lept)
+
+pkg_check_modules(PIPEWIRE REQUIRED libpipewire-0.3)
+pkg_check_modules(PORTAL libportal)
+pkg_check_modules(TESSERACT tesseract)
+pkg_check_modules(LEPTONICA lept)
+
+set(CMAKE_AUTOMOC ON)
+
+add_executable(vibenote_daemon
+    src/main.cpp
+    src/config.cpp
+    src/http_server.cpp
+    src/llama_client.cpp
+    src/gpu_guard.cpp
+    src/logging.cpp
+    src/metrics.cpp
+    src/queue.cpp
+    src/capture/screencast_portal.cpp
+    src/capture/frame_diff.cpp
+    src/enrich/enrich_none.cpp
+    src/enrich/enrich_openai.cpp
+    src/enrich/enrich_secondary.cpp
+    src/exporters/export_csv.cpp
+    src/exporters/export_json.cpp
+    src/exporters/export_raw.cpp
+    src/ocr/ocr_paddle.cpp
+    src/ocr/ocr_tesseract.cpp
+    src/store/sqlite_store.cpp
+    src/windows/kwin_watcher.cpp
+)
+
+target_include_directories(vibenote_daemon PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${PIPEWIRE_INCLUDE_DIRS}
+    ${PORTAL_INCLUDE_DIRS}
+    ${TESSERACT_INCLUDE_DIRS}
+    ${LEPTONICA_INCLUDE_DIRS}
+)
 
 target_link_libraries(vibenote_daemon
-    PRIVATE
-        Qt6::Core
-        Qt6::Network
-        Qt6::DBus
-        SQLite::SQLite3
-        Threads::Threads
-        ${NVML_LIBRARY}
-        PkgConfig::PipeWire
-        PkgConfig::Portal
-        PkgConfig::Tesseract
-        PkgConfig::Leptonica
+    Qt6::Core
+    Qt6::Network
+    Qt6::Sql
+    Qt6::Gui
+    Qt6::HttpServer
+    SQLite::SQLite3
+    ${PIPEWIRE_LIBRARIES}
+    ${PORTAL_LIBRARIES}
+    ${TESSERACT_LIBRARIES}
+    ${LEPTONICA_LIBRARIES}
 )
 
-if(ENABLE_PADDLE_OCR)
-    find_package(ONNXRuntime REQUIRED)
-    target_link_libraries(vibenote_daemon PRIVATE onnxruntime::onnxruntime)
-endif()
-
-if(EXISTS "${CMAKE_SOURCE_DIR}/third_party/llama.cpp/CMakeLists.txt")
-    add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/llama.cpp third_party/llama.cpp)
-    target_link_libraries(vibenote_daemon PRIVATE llama)
-endif()
-
-vibenote_set_warnings(vibenote_daemon)
-
-install(TARGETS vibenote_daemon
-    RUNTIME DESTINATION bin
-)
-
-install(FILES openapi.yaml
-    DESTINATION share/vibenote
-)
-
+install(TARGETS vibenote_daemon DESTINATION bin)

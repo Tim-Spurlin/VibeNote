@@ -3,6 +3,317 @@
 bin/
 lib/
 
+# ============================================
+# VibeNote Project .gitignore
+# ============================================
+# Optimized for GitHub storage while maintaining
+# AI/Codex testing capability in sandbox environments
+
+# ============================================
+# Build Directories & Artifacts
+# ============================================
+/build/
+/build-*/
+/cmake-build-*/
+**/build/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/Makefile
+**/CTestTestfile.cmake
+**/compile_commands.json
+**/CPackConfig.cmake
+**/CPackSourceConfig.cmake
+
+# Qt/QML Build Artifacts
+*.qmlc
+*.jsc
+*.qrc.depends
+*.pro.user
+*.pro.user.*
+*_qmltyperegistrations.cpp
+*_autogen/
+*.autosave
+.qmake.cache
+.qmake.stash
+qrc_*.cpp
+ui_*.h
+moc_*.cpp
+moc_*.h
+qml_*.cpp
+qml_*.h
+*.moc
+/.rcc/
+/.qt/
+**/meta_types/
+**/qmltypes/
+
+# ============================================
+# Binary & Object Files
+# ============================================
+*.o
+*.obj
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+*.a
+*.la
+*.lai
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# ============================================
+# Model Files (Large Binary Files)
+# ============================================
+# Exclude large model files but keep directory structure
+*.gguf
+*.ggml
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.pb
+# Keep the models directory structure with .gitkeep
+!models/.gitkeep
+
+# ============================================
+# IDE & Editor Files
+# ============================================
+# KDevelop
+*.kdev4
+.kdev4/
+*.kdev_include_paths
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# CLion / JetBrains
+.idea/
+cmake-build-*/
+*.iml
+
+# QtCreator
+*.user
+*.user.*
+*.autosave
+*.cflags
+*.config
+*.creator
+*.cxxflags
+*.files
+*.includes
+
+# Vim
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================
+# Logs & Temporary Files
+# ============================================
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.tmp
+*.temp
+.tmp/
+tmp/
+temp/
+
+# ============================================
+# System Files
+# ============================================
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============================================
+# Package & Dependency Management
+# ============================================
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.env
+.venv
+
+# Node (if any frontend tooling is added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================
+# Third Party Specific
+# ============================================
+# llama.cpp build artifacts but keep source
+third_party/llama.cpp/build/
+third_party/llama.cpp/*.o
+third_party/llama.cpp/*.a
+third_party/llama.cpp/*.so
+third_party/llama.cpp/.kdev4/
+
+# ============================================
+# Backup Files
+# ============================================
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+
+# ============================================
+# Credentials & Secrets
+# ============================================
+*.key
+*.pem
+*.crt
+*.p12
+.env
+.env.local
+.env.*.local
+secrets/
+credentials/
+
+# ============================================
+# Runtime & Cache
+# ============================================
+*.cache
+.cache/
+cache/
+
+# ============================================
+# Documentation Build
+# ============================================
+docs/_build/
+docs/.doctrees/
+*.pdf
+
+# ============================================
+# EXCEPTIONS - Keep for AI/Codex Testing
+# ============================================
+# Keep all source code
+!**/*.cpp
+!**/*.h
+!**/*.hpp
+!**/*.c
+!**/*.cc
+!**/*.cxx
+
+# Keep QML files
+!**/*.qml
+!**/*.qmlproject
+!**/*.qmltypes
+
+# Keep build configuration
+!CMakeLists.txt
+!CMakePresets.json
+!*.cmake
+!Makefile.am
+!configure.ac
+
+# Keep resource files
+!**/*.qrc
+!**/*.ui
+
+# Keep scripts
+!**/*.sh
+!**/*.bash
+!**/*.fish
+
+# Keep configuration files
+!**/*.yaml
+!**/*.yml
+!**/*.json
+!**/*.xml
+!**/*.conf
+!**/*.ini
+
+# Keep documentation
+!**/*.md
+!**/*.txt
+!**/README*
+!**/LICENSE*
+!**/COPYING*
+
+# Keep desktop entries
+!**/*.desktop
+
+# Keep policy files
+!**/*.policy
+
+# Keep service files
+!**/*.service
+
+# Keep development scripts
+!scripts/**
+
+# Keep test files
+!tests/**/*.cpp
+!tests/**/*.h
+
+# Keep AGENT.md files for AI context
+!**/AGENT.md
+
+# Keep .gitkeep files for directory structure
+!**/.gitkeep
+
+# But still exclude backup versions of kept files
+*.cpp.bak
+*.h.bak
+*.cmake.bak
+*.txt.bak
+CMakeLists.txt.bak
+CMakeLists.txt.new
+
+# ============================================
+# Project Specific Exclusions
+# ============================================
+# Prefix scripts (build generated)
+prefix.sh
+prefix.sh.fish
+
+# Build logs
+build.log
+app_build.log
+
+# Install scripts
+InstallScripts.json
+
 # CMake + Ninja junk
 CMakeCache.txt
 CMakeFiles/
@@ -89,3 +400,7 @@ secrets*.json
 *.gnupg/
 .sops.yaml
 *.age
+
+# ============================================
+# END OF .gitignore
+# ============================================

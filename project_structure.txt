@@ -1,0 +1,226 @@
+.
+├── app
+│   ├── icons
+│   │   ├── AGENT.md
+│   │   └── .gitkeep
+│   ├── qml
+│   │   ├── AGENT.md
+│   │   ├── DashboardPage.qml
+│   │   ├── .gitkeep
+│   │   ├── Main.qml
+│   │   └── OverlayWindow.qml
+│   ├── src
+│   │   ├── AGENT.md
+│   │   ├── api_client.cpp
+│   │   ├── api_client.h
+│   │   ├── main.cpp
+│   │   ├── metrics_view.cpp
+│   │   ├── metrics_view.h
+│   │   ├── overlay_controller.cpp
+│   │   ├── overlay_controller.h
+│   │   └── settings_store.cpp
+│   ├── AGENT.md
+│   ├── app.qrc
+│   ├── CMakeLists.txt
+│   ├── CMakeLists.txt.bak
+│   ├── CMakeLists.txt.new
+│   └── org.saphyre.VibeNote.desktop
+├── build
+│   ├── app
+│   │   ├── CMakeFiles
+│   │   ├── meta_types
+│   │   ├── org
+│   │   ├── qmltypes
+│   │   ├── .qt
+│   │   ├── .rcc
+│   │   ├── vibenote_app_autogen
+│   │   ├── cmake_install.cmake
+│   │   ├── CTestTestfile.cmake
+│   │   ├── Makefile
+│   │   └── vibenote_app_qmltyperegistrations.cpp
+│   ├── bin
+│   ├── CMakeFiles
+│   │   ├── 4.0.3-dirty
+│   │   ├── all_aotstats.dir
+│   │   ├── CMakeScratch
+│   │   ├── fetch-translations.dir
+│   │   ├── FindOpenMP
+│   │   ├── module_vibenote_app_aotstats_target.dir
+│   │   ├── pkgRedirects
+│   │   ├── Progress
+│   │   ├── uninstall.dir
+│   │   ├── cmake.check_cache
+│   │   ├── CMakeConfigureLog.yaml
+│   │   ├── CMakeDirectoryInformation.cmake
+│   │   ├── CMakeRuleHashes.txt
+│   │   ├── cmake.verify_globs
+│   │   ├── InstallScripts.json
+│   │   ├── Makefile2
+│   │   ├── Makefile.cmake
+│   │   ├── progress.marks
+│   │   ├── TargetDirectories.txt
+│   │   └── VerifyGlobs.cmake
+│   ├── daemon
+│   │   ├── CMakeFiles
+│   │   ├── vibenote_daemon_autogen
+│   │   ├── cmake_install.cmake
+│   │   ├── CTestTestfile.cmake
+│   │   └── Makefile
+│   ├── .qt
+│   │   ├── deploy_qml_imports
+│   │   ├── QtDeploySupport.cmake
+│   │   └── QtDeployTargets.cmake
+│   ├── .rcc
+│   │   └── qmlcache
+│   ├── app_build.log
+│   ├── build.log
+│   ├── CMakeCache.txt
+│   ├── cmake_install.cmake
+│   ├── compile_commands.json
+│   ├── CPackConfig.cmake
+│   ├── CPackSourceConfig.cmake
+│   ├── CTestTestfile.cmake
+│   ├── ecm_uninstall.cmake
+│   ├── Makefile
+│   ├── prefix.sh
+│   └── prefix.sh.fish
+├── cmake
+│   ├── AGENT.md
+│   ├── toolchains.cmake
+│   └── warnings.cmake
+├── daemon
+│   ├── include
+│   │   └── .gitkeep
+│   ├── src
+│   │   ├── capture
+│   │   ├── enrich
+│   │   ├── exporters
+│   │   ├── ocr
+│   │   ├── store
+│   │   ├── windows
+│   │   ├── AGENT.md
+│   │   ├── config.cpp
+│   │   ├── config.h
+│   │   ├── gpu_guard.cpp
+│   │   ├── gpu_guard.h
+│   │   ├── http_server.cpp
+│   │   ├── http_server.cpp.bak
+│   │   ├── http_server.h
+│   │   ├── llama_client.cpp
+│   │   ├── llama_client.cpp.bak
+│   │   ├── llama_client.h
+│   │   ├── logging.cpp
+│   │   ├── logging.h
+│   │   ├── main.cpp
+│   │   ├── metrics.cpp
+│   │   └── queue.cpp
+│   ├── AGENT.md
+│   ├── CMakeLists.txt
+│   └── openapi.yaml
+├── .kdev4
+│   └── VibeNote.kdev4
+├── models
+│   ├── AGENT.md
+│   ├── .gitkeep
+│   └── qwen2.5-3b-instruct-q4_k_m.gguf
+├── packaging
+│   ├── polkit
+│   │   ├── AGENT.md
+│   │   └── org.saphyre.vibenote.policy
+│   ├── systemd
+│   │   ├── AGENT.md
+│   │   ├── vibed.service
+│   │   └── vibemodel.service
+│   └── AGENT.md
+├── scripts
+│   ├── AGENT.md
+│   ├── bench.sh
+│   ├── build.sh
+│   ├── export-examples.sh
+│   ├── run-dev.sh
+│   └── setup-arch.sh
+├── tests
+│   ├── app
+│   │   ├── AGENT.md
+│   │   └── .gitkeep
+│   ├── daemon
+│   │   ├── AGENT.md
+│   │   ├── .gitkeep
+│   │   └── test_queue.cpp
+│   ├── integration
+│   │   ├── AGENT.md
+│   │   └── .gitkeep
+│   └── AGENT.md
+├── third_party
+│   ├── llama.cpp
+│   │   ├── build
+│   │   ├── ci
+│   │   ├── cmake
+│   │   ├── common
+│   │   ├── .devops
+│   │   ├── docs
+│   │   ├── examples
+│   │   ├── ggml
+│   │   ├── gguf-py
+│   │   ├── .github
+│   │   ├── grammars
+│   │   ├── include
+│   │   ├── .kdev4
+│   │   ├── licenses
+│   │   ├── media
+│   │   ├── models
+│   │   ├── pocs
+│   │   ├── prompts
+│   │   ├── requirements
+│   │   ├── scripts
+│   │   ├── src
+│   │   ├── tests
+│   │   ├── tools
+│   │   ├── vendor
+│   │   ├── AUTHORS
+│   │   ├── build-xcframework.sh
+│   │   ├── .clang-format
+│   │   ├── .clang-tidy
+│   │   ├── CMakeLists.txt
+│   │   ├── CMakePresets.json
+│   │   ├── CODEOWNERS
+│   │   ├── CONTRIBUTING.md
+│   │   ├── convert_hf_to_gguf.py
+│   │   ├── convert_hf_to_gguf_update.py
+│   │   ├── convert_llama_ggml_to_gguf.py
+│   │   ├── convert_lora_to_gguf.py
+│   │   ├── .dockerignore
+│   │   ├── .ecrc
+│   │   ├── .editorconfig
+│   │   ├── .flake8
+│   │   ├── flake.lock
+│   │   ├── flake.nix
+│   │   ├── .gitignore
+│   │   ├── .gitkeep
+│   │   ├── .gitmodules
+│   │   ├── LICENSE
+│   │   ├── llama.cpp.kdev4
+│   │   ├── Makefile
+│   │   ├── mypy.ini
+│   │   ├── poetry.lock
+│   │   ├── .pre-commit-config.yaml
+│   │   ├── pyproject.toml
+│   │   ├── pyrightconfig.json
+│   │   ├── README.md
+│   │   ├── requirements.txt
+│   │   └── SECURITY.md
+│   └── AGENT.md
+├── AGENT.md
+├── .clang-format
+├── .clang-tidy
+├── CMakeLists.txt
+├── CMakeLists.txt.bak
+├── CMakePresets.json
+├── .gitignore
+├── LICENSE
+├── project_structure.txt
+├── README.md
+├── vibe-note-blueprint.json
+└── VibeNote.kdev4
+
+78 directories, 146 files

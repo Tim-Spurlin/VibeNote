@@ -1,109 +1,36 @@
+#include "api_client.h"
 #include <QDateTime>
 #include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QMap>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QObject>
+#include <QStringLiteral>
 #include <QTemporaryFile>
 #include <QTimer>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QVariantMap>
 
-class ApiClient : public QObject {
-    Q_OBJECT
-
-public:
-    explicit ApiClient(const QString &url = QStringLiteral("http://127.0.0.1:18080"), QObject *parent = nullptr);
-
-    Q_INVOKABLE void getStatus();
-    Q_INVOKABLE void summarize(const QString &prompt);
-    Q_INVOKABLE void fetchNotes(const QDateTime &from, const QDateTime &to);
-    Q_INVOKABLE void exportNotes(const QString &format, const QDateTime &from, const QDateTime &to);
-    Q_INVOKABLE void toggleWatchMode(bool enable);
-    Q_INVOKABLE void updateConfig(const QJsonObject &config);
-    Q_INVOKABLE void fetchMetrics();
-
-signals:
-    void statusReceived(const QJsonObject &status);
-    void summarizeComplete(const QString &result);
-    void notesReceived(const QJsonArray &notes);
-    void exportCompleted(const QString &path);
-    void watchModeToggled(bool enabled);
-    void configUpdated();
-    void metricsReceived(const QVariantMap &metrics);
-    void error(const QString &message);
-
-private slots:
-    void handleStatusResponse();
-    void handleSummarizeReadyRead();
-    void handleSummarizeFinished();
-    void handleNotesResponse();
-    void handleExportResponse();
-    void handleWatchModeResponse();
-    void handleUpdateConfigResponse();
-    void handleMetricsResponse();
-    void handleNetworkError(QNetworkReply::NetworkError code);
-
-private:
-    QNetworkReply *makeGet(const QString &path, const QUrlQuery &query = QUrlQuery());
-    QNetworkReply *makePost(const QString &path, const QJsonDocument &doc = QJsonDocument());
-    QNetworkReply *makePut(const QString &path, const QJsonDocument &doc = QJsonDocument());
-    void setupTimeout(QNetworkReply *reply);
-
-    QNetworkAccessManager *network_manager;
-    QString base_url;
-    QMap<QNetworkReply *, QString> pending_requests;
-};
+ApiClient::ApiClient(QObject *parent) 
+    : ApiClient(QStringLiteral("http://127.0.0.1:18080"), parent) {}
 
 ApiClient::ApiClient(const QString &url, QObject *parent)
-    : QObject(parent), network_manager(new QNetworkAccessManager(this)), base_url(url) {}
+    : QObject(parent), base_url_(url) {}
 
-void ApiClient::setupTimeout(QNetworkReply *reply) {
-    auto *timer = new QTimer(reply);
-    timer->setSingleShot(true);
-    connect(timer, &QTimer::timeout, this, [this, reply]() {
-        if (reply->isRunning()) {
-            reply->abort();
-            emit error(QStringLiteral("Request to %1 timed out").arg(reply->url().toString()));
-        }
-    });
-    timer->start(30000);
-}
-
-QNetworkReply *ApiClient::makeGet(const QString &path, const QUrlQuery &query) {
-    QUrl url(base_url + path);
-    QUrlQuery q = query;
-    url.setQuery(q);
-    QNetworkRequest req(url);
-    auto *reply = network_manager->get(req);
-    connect(reply, &QNetworkReply::errorOccurred, this, &ApiClient::handleNetworkError);
-    setupTimeout(reply);
-    return reply;
+QNetworkReply *ApiClient::makeGet(const QString &path) {
+    QUrl url(base_url_ + path);
+    QNetworkRequest request(url);
+    return manager_.get(request);
 }
 
 QNetworkReply *ApiClient::makePost(const QString &path, const QJsonDocument &doc) {
-    QUrl url(base_url + path);
-    QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    auto *reply = network_manager->post(req, doc.toJson());
-    connect(reply, &QNetworkReply::errorOccurred, this, &ApiClient::handleNetworkError);
-    setupTimeout(reply);
-    return reply;
-}
-
-QNetworkReply *ApiClient::makePut(const QString &path, const QJsonDocument &doc) {
-    QUrl url(base_url + path);
-    QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    auto *reply = network_manager->put(req, doc.toJson());
-    connect(reply, &QNetworkReply::errorOccurred, this, &ApiClient::handleNetworkError);
-    setupTimeout(reply);
-    return reply;
+    QUrl url(base_url_ + path);
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    return manager_.post(request, doc.toJson());
 }
 
 void ApiClient::getStatus() {
@@ -111,39 +38,46 @@ void ApiClient::getStatus() {
     connect(reply, &QNetworkReply::finished, this, &ApiClient::handleStatusResponse);
 }
 
-void ApiClient::summarize(const QString &prompt) {
-    QJsonObject obj{{QStringLiteral("prompt"), prompt}};
+void ApiClient::summarize(const QString &prompt, const QJsonObject &params) {
+    QJsonObject obj = params;
+    obj[QStringLiteral("text")] = prompt;
     auto *reply = makePost(QStringLiteral("/v1/summarize"), QJsonDocument(obj));
-    pending_requests.insert(reply, QString());
-    connect(reply, &QIODevice::readyRead, this, &ApiClient::handleSummarizeReadyRead);
     connect(reply, &QNetworkReply::finished, this, &ApiClient::handleSummarizeFinished);
 }
 
 void ApiClient::fetchNotes(const QDateTime &from, const QDateTime &to) {
     QUrlQuery query;
-    query.addQueryItem(QStringLiteral("from"), from.toUTC().toString(Qt::ISODate));
-    query.addQueryItem(QStringLiteral("to"), to.toUTC().toString(Qt::ISODate));
-    auto *reply = makeGet(QStringLiteral("/v1/notes"), query);
+    query.addQueryItem(QStringLiteral("from"), QString::number(from.toSecsSinceEpoch()));
+    query.addQueryItem(QStringLiteral("to"), QString::number(to.toSecsSinceEpoch()));
+    
+    QUrl url(base_url_ + QStringLiteral("/v1/notes"));
+    url.setQuery(query);
+    QNetworkRequest request(url);
+    auto *reply = manager_.get(request);
     connect(reply, &QNetworkReply::finished, this, &ApiClient::handleNotesResponse);
 }
 
-void ApiClient::exportNotes(const QString &format, const QDateTime &from, const QDateTime &to) {
+void ApiClient::exportData(const QString &format, const QDateTime &from, const QDateTime &to) {
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("format"), format);
-    query.addQueryItem(QStringLiteral("from"), from.toUTC().toString(Qt::ISODate));
-    query.addQueryItem(QStringLiteral("to"), to.toUTC().toString(Qt::ISODate));
-    auto *reply = makeGet(QStringLiteral("/v1/export"), query);
+    query.addQueryItem(QStringLiteral("from"), from.toString(Qt::ISODate));
+    query.addQueryItem(QStringLiteral("to"), to.toString(Qt::ISODate));
+    
+    QUrl url(base_url_ + QStringLiteral("/v1/export"));
+    url.setQuery(query);
+    QNetworkRequest request(url);
+    auto *reply = manager_.get(request);
     connect(reply, &QNetworkReply::finished, this, &ApiClient::handleExportResponse);
 }
 
 void ApiClient::toggleWatchMode(bool enable) {
-    auto *reply = makePost(enable ? QStringLiteral("/v1/watch/start")
-                                  : QStringLiteral("/v1/watch/stop"));
+    QString endpoint = enable ? QStringLiteral("/v1/watch/start") : QStringLiteral("/v1/watch/stop");
+    auto *reply = makePost(endpoint, QJsonDocument());
     connect(reply, &QNetworkReply::finished, this, &ApiClient::handleWatchModeResponse);
 }
 
 void ApiClient::updateConfig(const QJsonObject &config) {
-    auto *reply = makePut(QStringLiteral("/v1/config"), QJsonDocument(config));
+    auto *reply = makePost(QStringLiteral("/v1/config"), QJsonDocument(config));
     connect(reply, &QNetworkReply::finished, this, &ApiClient::handleUpdateConfigResponse);
 }
 
@@ -153,145 +87,123 @@ void ApiClient::fetchMetrics() {
 }
 
 void ApiClient::handleStatusResponse() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
-    }
-    const QByteArray data = reply->readAll();
-    const QJsonDocument doc = QJsonDocument::fromJson(data);
-    if (reply->error() != QNetworkReply::NoError || !doc.isObject()) {
-        emit error(reply->error() == QNetworkReply::NoError ? QStringLiteral("Invalid status response")
-                                                            : reply->errorString());
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        Q_EMIT statusReceived(doc.object());
     } else {
-        emit statusReceived(doc.object());
+        Q_EMIT error(reply->errorString());
     }
     reply->deleteLater();
 }
 
-void ApiClient::handleSummarizeReadyRead() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply || !pending_requests.contains(reply)) {
-        return;
-    }
-    pending_requests[reply].append(QString::fromUtf8(reply->readAll()));
-}
-
 void ApiClient::handleSummarizeFinished() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
-    }
-    const QString result = pending_requests.take(reply);
-    if (reply->error() != QNetworkReply::NoError) {
-        emit error(reply->errorString());
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QString result = doc.object()[QStringLiteral("summary")].toString();
+        Q_EMIT summarizeComplete(result);
     } else {
-        emit summarizeComplete(result);
+        Q_EMIT error(reply->errorString());
     }
     reply->deleteLater();
 }
 
 void ApiClient::handleNotesResponse() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
-    }
-    const QByteArray data = reply->readAll();
-    const QJsonDocument doc = QJsonDocument::fromJson(data);
-    if (reply->error() != QNetworkReply::NoError || !doc.isArray()) {
-        emit error(reply->error() == QNetworkReply::NoError ? QStringLiteral("Invalid notes response")
-                                                            : reply->errorString());
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    
+    if (reply->error() == QNetworkReply::NoError) {
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        Q_EMIT notesReceived(doc.array());
     } else {
-        emit notesReceived(doc.array());
+        Q_EMIT error(reply->errorString());
     }
     reply->deleteLater();
 }
 
 void ApiClient::handleExportResponse() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
-    }
-    if (reply->error() != QNetworkReply::NoError) {
-        emit error(reply->errorString());
-        reply->deleteLater();
-        return;
-    }
-    QTemporaryFile file(QDir::tempPath() + "/vibenote_exportXXXXXX");
-    if (!file.open()) {
-        emit error(QStringLiteral("Failed to create export file"));
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    
+    if (reply->error() == QNetworkReply::NoError) {
+        QTemporaryFile file(QDir::tempPath() + QStringLiteral("/vibenote_exportXXXXXX"));
+        if (file.open()) {
+            file.write(reply->readAll());
+            file.close();
+            Q_EMIT exportCompleted(file.fileName());
+        } else {
+            Q_EMIT error(QStringLiteral("Failed to create export file"));
+        }
     } else {
-        file.write(reply->readAll());
-        file.setAutoRemove(false);
-        const QString path = file.fileName();
-        file.close();
-        emit exportCompleted(path);
+        Q_EMIT error(reply->errorString());
     }
     reply->deleteLater();
 }
 
 void ApiClient::handleWatchModeResponse() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
-    }
-    if (reply->error() != QNetworkReply::NoError) {
-        emit error(reply->errorString());
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    
+    if (reply->error() == QNetworkReply::NoError) {
+        bool enabled = reply->url().path().endsWith(QStringLiteral("start"));
+        Q_EMIT watchModeToggled(enabled);
     } else {
-        emit watchModeToggled(reply->url().path().endsWith("start"));
+        Q_EMIT error(reply->errorString());
     }
     reply->deleteLater();
 }
 
 void ApiClient::handleUpdateConfigResponse() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
-    }
-    if (reply->error() != QNetworkReply::NoError) {
-        emit error(reply->errorString());
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    
+    if (reply->error() == QNetworkReply::NoError) {
+        Q_EMIT configUpdated();
     } else {
-        emit configUpdated();
+        Q_EMIT error(reply->errorString());
     }
     reply->deleteLater();
 }
 
 void ApiClient::handleMetricsResponse() {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
-    }
-    const QString text = QString::fromUtf8(reply->readAll());
-    QVariantMap metrics;
-    const auto lines = text.split('\n', Qt::SkipEmptyParts);
-    for (const QString &line : lines) {
-        if (line.startsWith('#')) {
-            continue;
-        }
-        const auto parts = line.split(' ');
-        if (parts.size() == 2) {
-            bool ok = false;
-            const double value = parts[1].toDouble(&ok);
-            if (ok) {
-                metrics.insert(parts[0], value);
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (!reply) return;
+    
+    if (reply->error() == QNetworkReply::NoError) {
+        QString text = QString::fromUtf8(reply->readAll());
+        QJsonObject metrics;
+        
+        // Parse Prometheus format
+        const auto lines = text.split(QChar::fromLatin1('\n'), Qt::SkipEmptyParts);
+        for (const QString &line : lines) {
+            if (line.startsWith(QLatin1Char('#'))) {
+                continue;
+            }
+            const auto parts = line.split(QLatin1Char(' '));
+            if (parts.size() == 2) {
+                bool ok = false;
+                double value = parts[1].toDouble(&ok);
+                if (ok) {
+                    metrics[parts[0]] = value;
+                }
             }
         }
-    }
-    if (reply->error() != QNetworkReply::NoError) {
-        emit error(reply->errorString());
+        
+        Q_EMIT metricsReceived(metrics);
     } else {
-        emit metricsReceived(metrics);
+        Q_EMIT error(reply->errorString());
     }
     reply->deleteLater();
 }
 
 void ApiClient::handleNetworkError(QNetworkReply::NetworkError) {
-    auto *reply = qobject_cast<QNetworkReply *>(sender());
-    if (!reply) {
-        return;
+    auto *reply = qobject_cast<QNetworkReply*>(sender());
+    if (reply) {
+        Q_EMIT error(reply->errorString());
     }
-    emit error(reply->errorString());
-    pending_requests.remove(reply);
-    reply->deleteLater();
 }
-
-#include "api_client.moc"

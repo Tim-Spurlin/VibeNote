@@ -1,60 +1,82 @@
 cmake_minimum_required(VERSION 3.26)
-
 project(VibeNoteApp LANGUAGES CXX)
+
+# CRITICAL: Set AUTOMOC before any targets are created
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Network Qml)
-find_package(KF6 REQUIRED COMPONENTS I18n ConfigCore ConfigGui Kirigami GlobalAccel)
+# Find Qt6 components
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Network Qml Widgets)
+find_package(KF6 REQUIRED COMPONENTS I18n Config Kirigami GlobalAccel)
 
-qt_policy(SET QTP0001 NEW)
 qt_standard_project_setup()
+qt_policy(SET QTP0001 NEW)  # Use new QML resource prefix
 
-file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS src/*.cpp)
-qt_add_executable(vibenote_app
-    MANUAL_FINALIZATION
-    ${APP_SOURCES}
+# Source files
+set(APP_SOURCES
+    src/main.cpp
+    src/api_client.cpp
+    src/metrics_view.cpp
+    src/overlay_controller.cpp
+    src/settings_store.cpp
 )
 
-if(WIN32)
-    set_target_properties(vibenote_app PROPERTIES WIN32_EXECUTABLE TRUE)
-endif()
+# Header files (explicitly listed for MOC)
+set(APP_HEADERS
+    src/api_client.h
+    src/metrics_view.h
+    src/overlay_controller.h
+    src/settings_store.h
+)
 
-if(APPLE)
-    set_target_properties(vibenote_app PROPERTIES MACOSX_BUNDLE TRUE)
-endif()
+# Create executable
+qt_add_executable(vibenote_app
+    ${APP_SOURCES}
+    ${APP_HEADERS}
+)
 
+# QML module - USE RELATIVE PATHS, NOT GLOB!
+qt_add_qml_module(vibenote_app
+    URI org.saphyre.vibenote
+    VERSION 1.0
+    QML_FILES
+        qml/Main.qml
+        qml/DashboardPage.qml
+        qml/OverlayWindow.qml
+)
+
+# Resources
 qt_add_resources(vibenote_app "resources"
     PREFIX "/"
     FILES app.qrc
 )
 
-file(GLOB_RECURSE QML_FILES CONFIGURE_DEPENDS qml/*.qml)
-qt_add_qml_module(vibenote_app
-    URI org.saphyre.vibenote
-    VERSION 1.0
-    QML_FILES ${QML_FILES}
+# Link libraries
+target_link_libraries(vibenote_app PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Quick
+    Qt6::QuickControls2
+    Qt6::Network
+    Qt6::Qml
+    Qt6::Widgets
+    KF6::I18n
+    KF6::ConfigCore
+    KF6::ConfigGui
+    KF6::Kirigami
+    KF6::GlobalAccel
 )
 
-target_link_libraries(vibenote_app
-    PRIVATE
-        Qt6::Core Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::Network Qt6::Qml
-        KF6::I18n KF6::ConfigCore KF6::ConfigGui
-        KF6::Kirigami KF6::GlobalAccel
+# Include directories
+target_include_directories(vibenote_app PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-vibenote_set_warnings(vibenote_app)
+# Finalize executable
+qt_finalize_executable(vibenote_app)
 
+# Install targets
 install(TARGETS vibenote_app
     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/
 )
-
-install(FILES org.saphyre.VibeNote.desktop
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications/
-)
-
-install(DIRECTORY icons/
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/share/icons/hicolor/
-)
-
-qt_finalize_executable(vibenote_app)
