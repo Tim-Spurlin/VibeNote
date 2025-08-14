@@ -28,15 +28,17 @@ fi
 echo -e "${GREEN}Installing system packages...${NC}"
 sudo pacman -S --needed --noconfirm \
     base-devel cmake ninja git wget \
-    qt6-base qt6-declarative qt6-svg qt6-tools \
-    kirigami kglobalaccel5 kconfig5 ki18n5 \
+    qt6-base qt6-declarative qt6-svg qt6-tools qt6-multimedia qt6-networkauth \
+    qt6-httpserver qt6-websockets qt6-imageformats \
+    kconfig kcoreaddons ki18n kirigami kglobalaccel kio kguiaddons kiconthemes qqc2-desktop-style \
+    qtkeychain-qt6 \
     sqlite tesseract tesseract-data-eng \
     pipewire libpipewire \
-    libportal libportal-gtk3 libportal-qt5 \
+    libportal libportal-gtk3 libportal-qt6 \
+    opencv nlohmann-json fmt spdlog \
     nvidia-open-dkms nvidia-utils lib32-nvidia-utils \
     cuda cudnn \
     python python-pip \
-    nlohmann-json fmt spdlog \
     gtest gmock \
     clang llvm lld
 
